@@ -572,7 +572,7 @@ struct ToolsView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     header.cascadeItem(0)
-                    LazyVGrid(columns: Self.columns, spacing: 12) {
+                    LazyVGrid(columns: Self.columns, spacing: 16) {
                         NavigationLink {
                             SideBySideView(manager: sideBySideManager)
                         } label: {
@@ -629,7 +629,7 @@ struct ToolsView: View {
                         NavigationLink {
                             SourcesView(manager: sourcesManager, appsManager: appsManager)
                         } label: {
-                            ToolTile(image: "SourcesLogo", title: L("Sources"), subtitle: L("Discover & install"), hot: true,
+                            ToolTile(image: "SourcesLogo", title: L("Sources"), subtitle: L("Discover & install"),
                                      count: sourcesManager.updateCount(installed: appsManager.entries))
                         }
                         .buttonStyle(.plain, sound: .tick)
@@ -638,7 +638,8 @@ struct ToolsView: View {
                 }
                 // No bottom padding: the tab bar's inset already clears the last
                 // row of tiles, and the extra 20pt would make a page that fits scroll.
-                .padding([.horizontal, .top], 20)
+                .padding(.horizontal, 22)
+                .padding(.top, 16)
                 .pageColumn()
             }
             // Still unless the tiles don't all fit on the screen.
@@ -650,7 +651,7 @@ struct ToolsView: View {
     }
 
     /// Two square tiles to a row.
-    private static let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 2)
+    private static let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 2)
 
     /// Cascade index for rows below Pairing, shifted by one when that row is shown.
     private func rowIndex(_ position: Int) -> Int {
@@ -666,46 +667,35 @@ struct ToolsView: View {
     }
 }
 
-/// One Tools menu tile, like the screenshot's cards: a glass card with
-/// the icon top-left and the name + subtitle bottom-left. Pages without
-/// logo art pass an SF Symbol, drawn on a plain tile at the same size.
+/// One Tools menu tile, like Strata's Home Screen cards: a glass card
+/// with the icon top-left and the name + detail bottom-left.
 private struct ToolTile: View {
     var image: String? = nil
     var icon: String? = nil
     var title: String
     var subtitle: String? = nil
-    /// Bright red like the screenshot's Wallpaper card.
-    var hot: Bool = false
     /// Shows a Beta badge in the top corner.
     var beta: Bool = false
     /// A count in the top corner, such as the updates Sources found. 0 hides it.
     var count: Int = 0
 
     var body: some View {
-        let logo = RoundedRectangle(cornerRadius: 10, style: .continuous)
-        let tile = RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
+        let tile = RoundedRectangle(cornerRadius: 28, style: .continuous)
         return VStack(alignment: .leading, spacing: 8) {
             glyph
-                .frame(width: 36, height: 36)
-                .clipShape(logo)
-                // The art's black tile would melt into the card without it.
-                .overlay(logo.strokeBorder(Theme.hairline, lineWidth: 1))
-            Spacer(minLength: 24)
+            Spacer(minLength: 0)
             Text(title)
-                .font(.title3.weight(.bold))
-                .foregroundStyle(.white)
+                .font(.system(size: 17, weight: .semibold))
                 .lineLimit(2)
-                .minimumScaleFactor(0.7)
             if let subtitle {
                 Text(subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.muted)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .lineLimit(3)
             }
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(18)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .aspectRatio(1, contentMode: .fit)
         .overlay(alignment: .topTrailing) {
             if beta {
@@ -724,14 +714,6 @@ private struct ToolTile: View {
             }
         }
         .cardSurface(in: tile)
-        .overlay(
-            tile.fill(
-                LinearGradient(colors: [Color(red: 255 / 255, green: 26 / 255, blue: 26 / 255).opacity(0.55),
-                                        Color(red: 122 / 255, green: 8 / 255, blue: 8 / 255).opacity(0.35)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-            )
-            .opacity(hot ? 1 : 0)
-        )
         .contentShape(tile)
     }
 
@@ -740,13 +722,12 @@ private struct ToolTile: View {
         if let image {
             Image(image)
                 .logoArt()
+                .frame(width: 28, height: 28)
+                .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         } else {
-            ZStack {
-                Rectangle().fill(Theme.raised)
-                Image(systemName: icon ?? "questionmark")
-                    .font(.system(size: 28))
-                    .foregroundStyle(.secondary)
-            }
+            Image(systemName: icon ?? "questionmark")
+                .font(.system(size: 26))
+                .foregroundStyle(.white.opacity(0.95))
         }
     }
 }

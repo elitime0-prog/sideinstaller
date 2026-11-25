@@ -35,13 +35,13 @@ enum Theme {
 
     /// The deep red of the logo art's patterns, and of the wash at the top
     /// of every page.
-    static let navy = Color(red: 180 / 255, green: 0 / 255, blue: 0 / 255)
+    static let navy = Color(red: 178 / 255, green: 9 / 255, blue: 3 / 255)
     /// The filled red: the main button and a ticked box. White on it reads
     /// at 4.8:1.
-    static let blue = Color(red: 255 / 255, green: 26 / 255, blue: 26 / 255)
+    static let blue = Color(red: 178 / 255, green: 9 / 255, blue: 3 / 255)
     /// The light red drawn on the dark: progress, the selection, links and
     /// a card's label icon. At least 6:1 on every surface above.
-    static let accent = Color(red: 255 / 255, green: 92 / 255, blue: 92 / 255)
+    static let accent = Color(red: 255 / 255, green: 100 / 255, blue: 80 / 255)
     /// Done, connected, granted.
     static let positive = Color(red: 76 / 255, green: 195 / 255, blue: 138 / 255)
     /// Something needs the user, or will soon.
@@ -79,40 +79,28 @@ extension View {
 
 // MARK: - Background
 
-/// The page every screen sits on: pure black with red glows and thin
-/// red ribbon loops, like the screenshot wallpaper. Still: nothing in
-/// it moves.
+/// The page every screen sits on: Strata's ribbon wallpaper, ported from
+/// LiveBoardRibbonWallpaper in Strata. Black, a soft red glow, and three
+/// red ribbon ellipses. Still: nothing in it moves.
 struct AppBackground: View {
     var body: some View {
-        ZStack {
-            Theme.page
-            // Bright red glow, top-left, like the screenshot's centre glow.
-            RadialGradient(colors: [Color(red: 255 / 255, green: 26 / 255, blue: 26 / 255).opacity(0.5), .clear],
-                           center: .center, startRadius: 0, endRadius: 320)
-                .frame(width: 640, height: 640)
-                .offset(x: -140, y: -80)
-                .blur(radius: 12)
-            // Deep red glow, lower-right.
-            RadialGradient(colors: [Theme.navy.opacity(0.55), .clear],
-                           center: .center, startRadius: 0, endRadius: 280)
-                .frame(width: 560, height: 560)
-                .offset(x: 160, y: 320)
-            // Ribbon loops, like the wallpaper's red curves.
-            Circle()
-                .stroke(Color.red.opacity(0.38), lineWidth: 3)
-                .frame(width: 620, height: 620)
-                .offset(x: -180, y: 80)
-            Circle()
-                .stroke(Color.red.opacity(0.22), lineWidth: 2)
-                .frame(width: 520, height: 520)
-                .offset(x: 140, y: 420)
-            Circle()
-                .stroke(Color(red: 1, green: 0.2, blue: 0.2).opacity(0.3), lineWidth: 2)
-                .frame(width: 420, height: 420)
-                .offset(x: -80, y: 640)
+        GeometryReader { geometry in
+            ZStack {
+                Color.black
+                Ellipse().fill(RadialGradient(colors: [accent.opacity(0.45), accent.opacity(0.08), .black], center: .center, startRadius: 0, endRadius: geometry.size.height * 0.48))
+                    .frame(width: geometry.size.width * 1.5, height: geometry.size.height * 0.9).rotationEffect(.degrees(-20)).offset(x: -40, y: -70)
+                ForEach(0..<3) { index in
+                    Ellipse().stroke(LinearGradient(colors: [.black, accent.opacity(0.6), .black, accent.opacity(0.9), .black], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 3 + CGFloat(index) * 1.5)
+                        .background(Ellipse().fill(LinearGradient(colors: [.black.opacity(0.9), accent.opacity(0.22), .black], startPoint: .topLeading, endPoint: .bottomTrailing)))
+                        .frame(width: geometry.size.width * (0.7 + Double(index) * 0.13), height: geometry.size.height * (0.65 - Double(index) * 0.1))
+                        .rotationEffect(.degrees(Double(index) * 38 - 34)).offset(x: CGFloat(index - 1) * 32, y: CGFloat(index - 1) * 35)
+                }
+                Color.black.opacity(0.1)
+            }.frame(width: geometry.size.width, height: geometry.size.height).clipped()
         }
         .ignoresSafeArea()
     }
+    private var accent: Color { Theme.navy }
 }
 
 // MARK: - Cards
@@ -129,26 +117,28 @@ struct PanelCard<Content: View>: View {
     }
 }
 
-/// What a card is made of: glass — a bright top-left highlight fading
-/// to dark red, a bright hairline edge, and a red shadow under it.
+/// What a card is made of: Strata's glass, ported from
+/// LiveBoardGlassSurface. Clear glass on iOS 26, ultra-thin material
+/// below it, a flat dark fill when transparency is reduced.
 private struct CardSurface<S: InsettableShape>: ViewModifier {
     var shape: S
     /// False takes the surface away without changing the view, for one that
     /// is a card only some of the time.
     var shown: Bool
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     func body(content: Content) -> some View {
-        content
-            .background(
-                shape.fill(
-                    LinearGradient(colors: [Color.white.opacity(0.12), Theme.card,
-                                            Color(red: 64 / 255, green: 10 / 255, blue: 10 / 255)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing)
-                )
-                .opacity(shown ? 1 : 0)
-            )
-            .overlay(shape.strokeBorder(Color.white.opacity(0.18), lineWidth: 1).opacity(shown ? 1 : 0))
-            .shadow(color: Color.red.opacity(shown ? 0.28 : 0), radius: 18, x: 0, y: 8)
+        if !shown {
+            content
+        } else if reduceTransparency {
+            content.background(Color(white: 0.16), in: shape)
+                .overlay(shape.strokeBorder(.white.opacity(0.18), lineWidth: 0.5))
+        } else if #available(iOS 26.0, *) {
+            content.glassEffect(.clear.interactive(true), in: shape)
+        } else {
+            content.background(.ultraThinMaterial, in: shape)
+                .overlay(shape.strokeBorder(LinearGradient(colors: [.white.opacity(0.3), .white.opacity(0.04), .white.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 0.6))
+        }
     }
 }
 
