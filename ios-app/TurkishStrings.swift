@@ -1314,4 +1314,14 @@ let turkishStrings: [String: String] = [
     "The debugger lost %@ (%@). Open it with JIT again.":
         "Hata ayıklayıcı %@ ile bağlantıyı kaybetti (%@). Onu yeniden JIT ile aç.",
     "Universal": "Evrensel",
+    // Red-theme Tools tiles (English fallback)
+    "Set up another iPhone": "Set up another iPhone",
+    "Make a pairing file": "Make a pairing file",
+    "Setup & providers": "Setup & providers",
+    "View & revoke": "View & revoke",
+    "Ask Apple for access": "Ask Apple for access",
+    "Set a location": "Set a location",
+    "Install & manage": "Install & manage",
+    "Discover & install": "Discover & install",
+
 ]

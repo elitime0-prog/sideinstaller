@@ -1416,4 +1416,14 @@ let japaneseStrings: [String: String] = [
         "デバッガは %@ にアタッチできませんでした（%@）。デバッガがアタッチできるように署名する SideStore か SideInstaller で再インストールしてください。",
     "The debugger lost %@ (%@). Open it with JIT again.": "デバッガが %@ を見失いました（%@）。もう一度 JIT で開いてください。",
     "Universal": "ユニバーサル",
+    // Red-theme Tools tiles (English fallback)
+    "Set up another iPhone": "Set up another iPhone",
+    "Make a pairing file": "Make a pairing file",
+    "Setup & providers": "Setup & providers",
+    "View & revoke": "View & revoke",
+    "Ask Apple for access": "Ask Apple for access",
+    "Set a location": "Set a location",
+    "Install & manage": "Install & manage",
+    "Discover & install": "Discover & install",
+
 ]

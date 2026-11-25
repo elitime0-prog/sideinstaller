@@ -576,7 +576,7 @@ struct ToolsView: View {
                         NavigationLink {
                             SideBySideView(manager: sideBySideManager)
                         } label: {
-                            ToolTile(image: "SideBySideLogo", title: L("Side by Side"))
+                            ToolTile(image: "SideBySideLogo", title: L("Side by Side"), subtitle: L("Set up another iPhone"))
                         }
                         .buttonStyle(.plain, sound: .tick)
                         .cascadeItem(1)
@@ -586,7 +586,7 @@ struct ToolsView: View {
                             NavigationLink {
                                 PairingView(manager: pairingManager)
                             } label: {
-                                ToolTile(image: "PairingLogo", title: L("Pairing"))
+                                ToolTile(image: "PairingLogo", title: L("Pairing"), subtitle: L("Make a pairing file"))
                             }
                             .buttonStyle(.plain, sound: .tick)
                             .cascadeItem(2)
@@ -594,42 +594,42 @@ struct ToolsView: View {
                         NavigationLink {
                             JITView(manager: jitManager)
                         } label: {
-                            ToolTile(image: "JITLogo", title: L("JIT"))
+                            ToolTile(image: "JITLogo", title: L("JIT"), subtitle: L("Setup & providers"))
                         }
                         .buttonStyle(.plain, sound: .tick)
                         .cascadeItem(rowIndex(2))
                         NavigationLink {
                             CertsView(manager: certManager)
                         } label: {
-                            ToolTile(image: "CertsLogo", title: L("Certificates"))
+                            ToolTile(image: "CertsLogo", title: L("Certificates"), subtitle: L("View & revoke"))
                         }
                         .buttonStyle(.plain, sound: .tick)
                         .cascadeItem(rowIndex(3))
                         NavigationLink {
                             EntitlementsView(manager: entitlementsManager)
                         } label: {
-                            ToolTile(image: "EntitlementsLogo", title: L("Entitlements"))
+                            ToolTile(image: "EntitlementsLogo", title: L("Entitlements"), subtitle: L("Ask Apple for access"))
                         }
                         .buttonStyle(.plain, sound: .tick)
                         .cascadeItem(rowIndex(4))
                         NavigationLink {
                             LocationView(manager: locationManager)
                         } label: {
-                            ToolTile(image: "LocationLogo", title: L("Location spoofing"))
+                            ToolTile(image: "LocationLogo", title: L("Location spoofing"), subtitle: L("Set a location"))
                         }
                         .buttonStyle(.plain, sound: .tick)
                         .cascadeItem(rowIndex(5))
                         NavigationLink {
                             AppsView(manager: appsManager)
                         } label: {
-                            ToolTile(image: "AppsLogo", title: L("Sideloaded apps"))
+                            ToolTile(image: "AppsLogo", title: L("Sideloaded apps"), subtitle: L("Install & manage"))
                         }
                         .buttonStyle(.plain, sound: .tick)
                         .cascadeItem(rowIndex(6))
                         NavigationLink {
                             SourcesView(manager: sourcesManager, appsManager: appsManager)
                         } label: {
-                            ToolTile(image: "SourcesLogo", title: L("Sources"),
+                            ToolTile(image: "SourcesLogo", title: L("Sources"), subtitle: L("Discover & install"), hot: true,
                                      count: sourcesManager.updateCount(installed: appsManager.entries))
                         }
                         .buttonStyle(.plain, sound: .tick)
@@ -666,33 +666,45 @@ struct ToolsView: View {
     }
 }
 
-/// One Tools menu tile: a square with the logo above the name. Pages without
+/// One Tools menu tile, like the screenshot's cards: a glass card with
+/// the icon top-left and the name + subtitle bottom-left. Pages without
 /// logo art pass an SF Symbol, drawn on a plain tile at the same size.
 private struct ToolTile: View {
     var image: String? = nil
     var icon: String? = nil
     var title: String
+    var subtitle: String? = nil
+    /// Bright red like the screenshot's Wallpaper card.
+    var hot: Bool = false
     /// Shows a Beta badge in the top corner.
     var beta: Bool = false
     /// A count in the top corner, such as the updates Sources found. 0 hides it.
     var count: Int = 0
 
     var body: some View {
-        let logo = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        let logo = RoundedRectangle(cornerRadius: 10, style: .continuous)
         let tile = RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
-        return VStack(spacing: 12) {
+        return VStack(alignment: .leading, spacing: 8) {
             glyph
-                .frame(width: 64, height: 64)
+                .frame(width: 36, height: 36)
                 .clipShape(logo)
                 // The art's black tile would melt into the card without it.
                 .overlay(logo.strokeBorder(Theme.hairline, lineWidth: 1))
+            Spacer(minLength: 24)
             Text(title)
-                .font(.body.weight(.medium))
-                .multilineTextAlignment(.center)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(.white)
                 .lineLimit(2)
                 .minimumScaleFactor(0.7)
+            if let subtitle {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.muted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
         }
-        .padding(12)
+        .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .aspectRatio(1, contentMode: .fit)
         .overlay(alignment: .topTrailing) {
@@ -712,6 +724,14 @@ private struct ToolTile: View {
             }
         }
         .cardSurface(in: tile)
+        .overlay(
+            tile.fill(
+                LinearGradient(colors: [Color(red: 255 / 255, green: 26 / 255, blue: 26 / 255).opacity(0.55),
+                                        Color(red: 122 / 255, green: 8 / 255, blue: 8 / 255).opacity(0.35)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+            )
+            .opacity(hot ? 1 : 0)
+        )
         .contentShape(tile)
     }
 

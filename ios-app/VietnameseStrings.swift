@@ -1450,4 +1450,14 @@ let vietnameseStrings: [String: String] = [
     "The debugger lost %@ (%@). Open it with JIT again.":
         "Trình gỡ lỗi đã mất kết nối với %@ (%@). Hãy mở lại nó bằng JIT.",
     "Universal": "Phổ quát",
+    // Red-theme Tools tiles (English fallback)
+    "Set up another iPhone": "Set up another iPhone",
+    "Make a pairing file": "Make a pairing file",
+    "Setup & providers": "Setup & providers",
+    "View & revoke": "View & revoke",
+    "Ask Apple for access": "Ask Apple for access",
+    "Set a location": "Set a location",
+    "Install & manage": "Install & manage",
+    "Discover & install": "Discover & install",
+
 ]

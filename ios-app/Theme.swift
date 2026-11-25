@@ -1,46 +1,47 @@
 import SwiftUI
 
-/// The app's shared visual language: a ramp of night blues, three blues
+/// The app's shared visual language: a ramp of night reds, three reds
 /// with a job each, and the cards, buttons and headers every screen is
 /// composed from.
 ///
-/// The surfaces are navy so dark they read as night, and the blues are kept
-/// apart by what they do: `navy` for the logo art and the wash at the top of
-/// a page, `blue` for what's filled behind white (the main button), `accent`
-/// for what's drawn on the dark (progress, links, the selection). Depth comes
-/// from a step between surfaces and a hairline edge.
+/// The surfaces are black so dark they read as night, with a red tint,
+/// and the reds are kept apart by what they do: `navy` for the logo art
+/// and the wash at the top of a page, `blue` for what's filled behind
+/// white (the main button), `accent` for what's drawn on the dark
+/// (progress, links, the selection). Depth comes from a step between
+/// surfaces and a hairline edge.
 enum Theme {
     // MARK: Ramp
 
-    /// The page behind everything: a navy so deep it reads as black until a
-    /// card sits on it.
-    static let page = Color(red: 5 / 255, green: 11 / 255, blue: 24 / 255)
+    /// The page behind everything: pure black, like the screenshot
+    /// wallpaper, so the red glows and ribbons read.
+    static let page = Color(red: 0 / 255, green: 0 / 255, blue: 0 / 255)
     /// A card on the page.
-    static let card = Color(red: 13 / 255, green: 21 / 255, blue: 36 / 255)
+    static let card = Color(red: 38 / 255, green: 18 / 255, blue: 18 / 255)
     /// One step above a card: popups, which float over the dimmed app.
-    static let raised = Color(red: 20 / 255, green: 30 / 255, blue: 49 / 255)
-    /// The pale blue that controls and edges are drawn in, faintly, so they
+    static let raised = Color(red: 44 / 255, green: 24 / 255, blue: 24 / 255)
+    /// The pale red that controls and edges are drawn in, faintly, so they
     /// stay in the ramp's hue instead of greying it.
-    static let ice = Color(red: 185 / 255, green: 211 / 255, blue: 249 / 255)
+    static let ice = Color(red: 255 / 255, green: 205 / 255, blue: 205 / 255)
     /// A control's fill, a step up from whatever it sits on.
     static let control = ice.opacity(0.07)
     /// The edge of a card or control.
-    static let hairline = ice.opacity(0.1)
-    /// Captions, meta and quiet icons: a slate blue, at least 4.5:1 on a
+    static let hairline = ice.opacity(0.12)
+    /// Captions, meta and quiet icons: a warm grey, at least 4.5:1 on a
     /// popup and more on a card.
-    static let muted = Color(red: 127 / 255, green: 141 / 255, blue: 165 / 255)
+    static let muted = Color(red: 168 / 255, green: 158 / 255, blue: 158 / 255)
 
     // MARK: Colour
 
-    /// The deep blue of the logo art's patterns, and of the wash at the top
+    /// The deep red of the logo art's patterns, and of the wash at the top
     /// of every page.
-    static let navy = Color(red: 9 / 255, green: 50 / 255, blue: 143 / 255)
-    /// The filled blue: the main button and a ticked box. White on it reads
+    static let navy = Color(red: 180 / 255, green: 0 / 255, blue: 0 / 255)
+    /// The filled red: the main button and a ticked box. White on it reads
     /// at 4.8:1.
-    static let blue = Color(red: 38 / 255, green: 105 / 255, blue: 237 / 255)
-    /// The light blue drawn on the dark: progress, the selection, links and
+    static let blue = Color(red: 255 / 255, green: 26 / 255, blue: 26 / 255)
+    /// The light red drawn on the dark: progress, the selection, links and
     /// a card's label icon. At least 6:1 on every surface above.
-    static let accent = Color(red: 96 / 255, green: 167 / 255, blue: 253 / 255)
+    static let accent = Color(red: 255 / 255, green: 92 / 255, blue: 92 / 255)
     /// Done, connected, granted.
     static let positive = Color(red: 76 / 255, green: 195 / 255, blue: 138 / 255)
     /// Something needs the user, or will soon.
@@ -53,7 +54,7 @@ enum Theme {
     /// Corner radius of a control: a field, a button, a row.
     static let controlRadius: CGFloat = 12
     /// Corner radius of a card.
-    static let cardRadius: CGFloat = 20
+    static let cardRadius: CGFloat = 28
     /// Corner radius of a popup.
     static let popupRadius: CGFloat = 24
 
@@ -78,18 +79,39 @@ extension View {
 
 // MARK: - Background
 
-/// The page every screen sits on: the night-blue page with a wash of navy at
-/// the top, where each page's logo tile and title sit, gone by the middle of
-/// a phone's screen. Still: nothing in it moves.
+/// The page every screen sits on: pure black with red glows and thin
+/// red ribbon loops, like the screenshot wallpaper. Still: nothing in
+/// it moves.
 struct AppBackground: View {
     var body: some View {
-        Theme.page
-            .overlay(alignment: .top) {
-                EllipticalGradient(colors: [Theme.navy.opacity(0.4), Theme.navy.opacity(0)],
-                                   center: .top, startRadiusFraction: 0, endRadiusFraction: 1)
-                    .frame(height: 480)
-            }
-            .ignoresSafeArea()
+        ZStack {
+            Theme.page
+            // Bright red glow, top-left, like the screenshot's centre glow.
+            RadialGradient(colors: [Color(red: 255 / 255, green: 26 / 255, blue: 26 / 255).opacity(0.5), .clear],
+                           center: .center, startRadius: 0, endRadius: 320)
+                .frame(width: 640, height: 640)
+                .offset(x: -140, y: -80)
+                .blur(radius: 12)
+            // Deep red glow, lower-right.
+            RadialGradient(colors: [Theme.navy.opacity(0.55), .clear],
+                           center: .center, startRadius: 0, endRadius: 280)
+                .frame(width: 560, height: 560)
+                .offset(x: 160, y: 320)
+            // Ribbon loops, like the wallpaper's red curves.
+            Circle()
+                .stroke(Color.red.opacity(0.38), lineWidth: 3)
+                .frame(width: 620, height: 620)
+                .offset(x: -180, y: 80)
+            Circle()
+                .stroke(Color.red.opacity(0.22), lineWidth: 2)
+                .frame(width: 520, height: 520)
+                .offset(x: 140, y: 420)
+            Circle()
+                .stroke(Color(red: 1, green: 0.2, blue: 0.2).opacity(0.3), lineWidth: 2)
+                .frame(width: 420, height: 420)
+                .offset(x: -80, y: 640)
+        }
+        .ignoresSafeArea()
     }
 }
 
@@ -107,7 +129,8 @@ struct PanelCard<Content: View>: View {
     }
 }
 
-/// What a card is made of: a step up from the page, and a hairline edge.
+/// What a card is made of: glass — a bright top-left highlight fading
+/// to dark red, a bright hairline edge, and a red shadow under it.
 private struct CardSurface<S: InsettableShape>: ViewModifier {
     var shape: S
     /// False takes the surface away without changing the view, for one that
@@ -116,8 +139,16 @@ private struct CardSurface<S: InsettableShape>: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .background(shape.fill(Theme.card.opacity(shown ? 1 : 0)))
-            .overlay(shape.strokeBorder(Theme.hairline.opacity(shown ? 1 : 0), lineWidth: 1))
+            .background(
+                shape.fill(
+                    LinearGradient(colors: [Color.white.opacity(0.12), Theme.card,
+                                            Color(red: 64 / 255, green: 10 / 255, blue: 10 / 255)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
+                .opacity(shown ? 1 : 0)
+            )
+            .overlay(shape.strokeBorder(Color.white.opacity(0.18), lineWidth: 1).opacity(shown ? 1 : 0))
+            .shadow(color: Color.red.opacity(shown ? 0.28 : 0), radius: 18, x: 0, y: 8)
     }
 }
 

@@ -1405,4 +1405,14 @@ let chineseStrings: [String: String] = [
         "调试器无法附加到 %@（%@）。请用 SideStore 或 SideInstaller 重新安装它，它们签名的应用可以被调试器附加。",
     "The debugger lost %@ (%@). Open it with JIT again.": "调试器与 %@ 断开了（%@）。请再次用 JIT 打开它。",
     "Universal": "通用",
+    // Red-theme Tools tiles (English fallback)
+    "Set up another iPhone": "Set up another iPhone",
+    "Make a pairing file": "Make a pairing file",
+    "Setup & providers": "Setup & providers",
+    "View & revoke": "View & revoke",
+    "Ask Apple for access": "Ask Apple for access",
+    "Set a location": "Set a location",
+    "Install & manage": "Install & manage",
+    "Discover & install": "Discover & install",
+
 ]

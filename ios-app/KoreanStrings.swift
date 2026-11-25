@@ -1418,4 +1418,14 @@ let koreanStrings: [String: String] = [
         "디버거가 %@ 앱에 연결하지 못했습니다(%@). 디버거가 연결할 수 있게 서명하는 SideStore나 SideInstaller로 다시 설치하세요.",
     "The debugger lost %@ (%@). Open it with JIT again.": "디버거가 %@ 앱과의 연결을 잃었습니다(%@). JIT로 다시 여세요.",
     "Universal": "유니버설",
+    // Red-theme Tools tiles (English fallback)
+    "Set up another iPhone": "Set up another iPhone",
+    "Make a pairing file": "Make a pairing file",
+    "Setup & providers": "Setup & providers",
+    "View & revoke": "View & revoke",
+    "Ask Apple for access": "Ask Apple for access",
+    "Set a location": "Set a location",
+    "Install & manage": "Install & manage",
+    "Discover & install": "Discover & install",
+
 ]
