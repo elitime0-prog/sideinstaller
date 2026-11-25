@@ -105,7 +105,7 @@ enum InstallSource: String, CaseIterable, Identifiable {
     var displayName: String {
         switch self {
         case .sideStore:     return "SideStore"
-        case .liveContainer: return "LiveContainer + SideStore"
+        case .liveContainer: return "Strata + SideStore"
         case .madeira:       return "Madeira"
         case .altStore:      return "AltStore"
         case .custom:        return L("Custom .ipa")
@@ -116,7 +116,7 @@ enum InstallSource: String, CaseIterable, Identifiable {
     var shortName: String {
         switch self {
         case .sideStore:     return "SideStore"
-        case .liveContainer: return "SS + LiveContainer"
+        case .liveContainer: return "SS + Strata"
         case .madeira:       return "Madeira"
         case .altStore:      return "AltStore"
         case .custom:        return L("Custom .ipa")
@@ -129,7 +129,7 @@ enum InstallSource: String, CaseIterable, Identifiable {
     var repo: String? {
         switch self {
         case .sideStore:        return "SideStore/SideStore"
-        case .liveContainer:    return "LiveContainer/LiveContainer"
+        case .liveContainer:    return "huzaifahshahid71-ops/Strata"
         case .madeira:          return "willfaust/Madeira"
         case .altStore, .custom: return nil
         }
@@ -174,7 +174,9 @@ enum InstallSource: String, CaseIterable, Identifiable {
     /// until a release from `firstStableVersion` on is out (`stableReleased`).
     func channels(stableReleased: Bool) -> [ReleaseChannel] {
         switch self {
-        case .sideStore, .liveContainer: return [.stable, .nightly]
+        case .sideStore: return [.stable, .nightly]
+        // Strata has no nightly tag, only stable releases.
+        case .liveContainer: return [.stable]
         case .madeira:                   return stableReleased ? [.stable, .nightly] : [.nightly]
         case .altStore, .custom:         return [.stable]
         }
@@ -238,8 +240,9 @@ enum InstallSource: String, CaseIterable, Identifiable {
     var assetFileName: String? {
         switch self {
         case .sideStore:                   return "SideStore.ipa"
-        case .liveContainer:               return "LiveContainer+SideStore.ipa"
-        case .madeira, .altStore, .custom: return nil
+        // Strata's asset is named after its version ("Strata-4.0+SideStore.ipa"
+        // on "v4.0.0"): see assetFileName(forTag:), like Madeira.
+        case .madeira, .liveContainer, .altStore, .custom: return nil
         }
     }
 
@@ -250,7 +253,11 @@ enum InstallSource: String, CaseIterable, Identifiable {
         case .madeira:
             let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
             return version.isEmpty ? nil : "Madeira-\(version).ipa"
-        case .sideStore, .liveContainer, .altStore, .custom:
+        case .liveContainer:
+            // "Strata-4.0+SideStore.ipa" on "v4.0.0".
+            let version = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
+            return version.isEmpty ? nil : "Strata-\(version)+SideStore.ipa"
+        case .sideStore, .altStore, .custom:
             return nil
         }
     }
@@ -276,28 +283,11 @@ enum InstallSource: String, CaseIterable, Identifiable {
         }
     }
 
-    /// A copy to install while `repo` is gone from GitHub, as LiveContainer's
-    /// has been since GitHub hid its organization in October 2026.
-    ///
-    /// The copy is its last nightly (18 September 2026, commit 4dbe0f9), put up
-    /// by someone who isn't a maintainer, so only that file is taken, by its
-    /// hash. The hash is the one Atticus2077/lc-sidestore-nightly-source's CI
-    /// recorded for the official asset on 25 September, before the takedown,
-    /// and the copy that CI kept matches this one file for file. Anything else
-    /// under the same link is refused, and no other build stands in for it.
-    var mirror: Mirror? {
-        switch self {
-        case .liveContainer:
-            return Mirror(
-                repo: "LiveContainerMirror/LiveContainer",
-                url: URL(string: "https://github.com/LiveContainerMirror/LiveContainer/releases/download/nightly/LiveContainer+SideStore.ipa")!,
-                assetName: "LiveContainer+SideStore.ipa",
-                channel: .nightly,
-                sha256: "bec41bc21d75a0f2e85a0aa589ce5772e24e410deb017486758a3bc0503c8de7")
-        case .sideStore, .madeira, .altStore, .custom:
-            return nil
-        }
-    }
+    /// A copy to install while `repo` is gone from GitHub. None now: Strata
+    /// replaces LiveContainer here, and its repo is live, so the old
+    /// LiveContainer nightly mirror (LiveContainerMirror/LiveContainer) is
+    /// gone with it.
+    var mirror: Mirror? { nil }
 
     /// Local filename for the downloaded IPA, e.g. "SideStore-nightly.ipa", or
     /// "SideStore (0.6.3).ipa" for a version picked under Advanced.
@@ -323,7 +313,7 @@ enum InstallSource: String, CaseIterable, Identifiable {
     private var fileStem: String? {
         switch self {
         case .sideStore:     return "SideStore"
-        case .liveContainer: return "LiveContainer+SideStore"
+        case .liveContainer: return "Strata+SideStore"
         case .madeira:       return "Madeira"
         case .altStore:      return "AltStore"
         case .custom:        return nil
@@ -340,7 +330,7 @@ enum InstallSource: String, CaseIterable, Identifiable {
     var pairingAppDisplayName: String? {
         switch self {
         case .sideStore:     return "SideStore"
-        case .liveContainer: return "LiveContainer"
+        case .liveContainer: return "Strata"
         case .madeira:       return MadeiraPairingHandoff.appName
         case .altStore:      return AltStorePairingHandoff.appName
         case .custom:        return nil
@@ -398,7 +388,7 @@ enum InstallSource: String, CaseIterable, Identifiable {
             return assets.first { $0.name.hasSuffix(".ipa") }
         case .liveContainer:
             // Prefer the published name, in case the asset is renamed later.
-            return assets.first { $0.name == "LiveContainer+SideStore.ipa" }
+            return assets.first { $0.name.hasPrefix("Strata-") && $0.name.lowercased().contains("sidestore") && $0.name.hasSuffix(".ipa") }
                 ?? assets.first { $0.name.lowercased().contains("sidestore") && $0.name.hasSuffix(".ipa") }
         case .madeira:
             // "Madeira-<version>.ipa", beside its checksum file.
@@ -1846,8 +1836,9 @@ enum IPALibrary {
         let name = fileName.lowercased()
         guard name.hasSuffix(".ipa") else { return nil }
         let source: InstallSource
-        // LiveContainer's asset also carries "SideStore", so test it first.
-        if name.contains("livecontainer")     { source = .liveContainer }
+        // Strata's asset also carries "SideStore", so test it (and the old
+        // LiveContainer name) first.
+        if name.contains("strata") || name.contains("livecontainer") { source = .liveContainer }
         else if name.contains("sidestore")    { source = .sideStore }
         else if name.contains("madeira")      { source = .madeira }
         else if name.contains("altstore")     { source = .altStore }

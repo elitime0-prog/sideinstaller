@@ -206,7 +206,7 @@ enum InstallableApp: String, AppEnum {
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "App"
     static let caseDisplayRepresentations: [InstallableApp: DisplayRepresentation] = [
         .sideStore: "SideStore",
-        .liveContainer: "LiveContainer + SideStore",
+        .liveContainer: "Strata + SideStore",
         .madeira: "Madeira",
         .altStore: "AltStore",
     ]
@@ -243,7 +243,7 @@ enum ReleaseTrack: String, AppEnum {
 struct InstallAppIntent: AppIntent {
     static let title: LocalizedStringResource = "Install App"
     static let description = IntentDescription(
-        "Opens SideInstaller and installs SideStore, LiveContainer + SideStore, Madeira or AltStore with your Apple ID, as Install does, then finishes when the install does. A build with only one release installs that one.",
+        "Opens SideInstaller and installs SideStore, Strata + SideStore, Madeira or AltStore with your Apple ID, as Install does, then finishes when the install does. A build with only one release installs that one.",
         categoryName: "Install",
         searchKeywords: ["sidestore", "livecontainer", "madeira", "altstore", "sideload", "reinstall"])
     static let openAppWhenRun = true

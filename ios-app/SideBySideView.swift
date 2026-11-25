@@ -122,7 +122,7 @@ enum SideBySideStep: Int, CaseIterable, Identifiable {
 
 // MARK: - Manager
 
-/// Installs SideInstaller, SideStore, LiveContainer + SideStore or an IPA
+/// Installs SideInstaller, SideStore, Strata + SideStore or an IPA
 /// picked from Files onto *another* iPhone on the same Wi-Fi network, one page
 /// at a time.
 ///
