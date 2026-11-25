@@ -673,16 +673,17 @@ struct AppsView: View {
     @State private var showSettings = false
     /// Shows the "Refresh all" confirmation alert.
     @State private var confirmRefresh = false
+    /// The App Library search, filtering the Home Screen grid by name.
+    @State private var searchText = ""
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                header.cascadeItem(0)
+                // Errors show as a popup, which `RootView` lays over the app.
+                appList
                 refreshAllButton
                 loadButton
                 refreshRunCard
-                // Errors show as a popup, which `RootView` lays over the app.
-                appList
                 refreshNote
                 unmatchedSection
             }
@@ -900,80 +901,135 @@ struct AppsView: View {
         }
     }
 
-    // MARK: App list
+    // MARK: Home Screen
 
+    /// Apps matching the App Library search.
+    private var visibleEntries: [SideloadedAppStatus] {
+        guard !searchText.isEmpty else { return manager.entries }
+        return manager.entries.filter { $0.app.name.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    /// A clean Home Screen like Strata's: an App Library search pill, a
+    /// four-column icon grid over the wallpaper, a page pill, and a glass
+    /// dock. Tapping an icon opens the app's profile page.
     @ViewBuilder
     private var appList: some View {
         if manager.hasLoaded && manager.entries.isEmpty && !manager.isWorking {
             emptyState.transition(.cardAppear)
         } else if !manager.entries.isEmpty {
-            VStack(spacing: 16) {
-                HStack {
-                    Text(manager.entries.count == 1
-                         ? L("%d app", manager.entries.count)
-                         : L("%d apps", manager.entries.count))
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    if let refreshed = manager.lastRefreshed {
-                        Text(refreshed.formatted(Date.FormatStyle(date: .omitted, time: .shortened)
-                                                     .locale(Localizer.locale)))
-                            .font(.caption)
-                            .foregroundStyle(Theme.muted)
+            VStack(spacing: 20) {
+                appLibraryPill
+                LazyVGrid(columns: Self.homeColumns, spacing: 22) {
+                    ForEach(Array(visibleEntries.enumerated()), id: \.element.id) { idx, status in
+                        NavigationLink {
+                            AppProfileDetail(status: status)
+                        } label: {
+                            homeIcon(status, showLabel: true)
+                        }
+                        .buttonStyle(.plain, sound: .tick)
+                        .cascadeItem(1 + idx)
                     }
                 }
-                .cascadeItem(4)
-                ForEach(Array(manager.entries.enumerated()), id: \.element.id) { idx, status in
-                    NavigationLink {
-                        AppProfileDetail(status: status)
-                    } label: {
-                        appRow(status)
-                    }
-                    .buttonStyle(.plain, sound: .tick)
-                    .cascadeItem(5 + idx)
-                }
+                pagePill
+                dock
             }
+        } else if !manager.hasLoaded {
+            appLibraryPill
         }
     }
 
-    private func appRow(_ status: SideloadedAppStatus) -> some View {
-        let profile = status.current
-        let urgency = ExpiryUrgency.of(profile)
-        return PanelCard {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "app.dashed")
-                    .font(.title3)
-                    .foregroundStyle(Theme.muted)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(status.app.name)
-                        .font(.subheadline.weight(.medium))
-                    // The App ID, which is what a profile is issued against —
-                    // the bundle id alone doesn't say which team signed it.
-                    Text(profile?.applicationIdentifier ?? status.app.applicationIdentifier ?? status.app.bundleID)
-                        .font(.caption.monospaced())
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    expiryLabel(profile, urgency: urgency)
+    private static let homeColumns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 4)
+
+    /// The App Library search pill from Strata's Home Screen.
+    private var appLibraryPill: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 20, weight: .medium))
+            TextField(L("App Library"), text: $searchText)
+                .font(.system(size: 20))
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.white.opacity(0.6))
                 }
-                Spacer(minLength: 8)
-                Image(systemName: "chevron.right")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(Theme.muted)
+                .buttonStyle(.plain)
             }
         }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 22)
+        .frame(height: 54)
+        .cardSurface(in: Capsule())
     }
 
-    /// The one line that matters: how long is left, and the date it runs out.
-    @ViewBuilder
-    private func expiryLabel(_ profile: ProvisioningProfile?, urgency: ExpiryUrgency) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: urgency.symbol)
-            Text(ExpiryUrgency.text(for: profile))
+    /// The search-and-page pill above the dock.
+    private var pagePill: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 13, weight: .semibold))
+            Rectangle().fill(.white.opacity(0.25)).frame(width: 1, height: 14)
+            Circle().fill(.white).frame(width: 7, height: 7)
         }
-        .font(.caption.weight(.medium))
-        .foregroundStyle(urgency.color)
-        .padding(.top, 1)
+        .foregroundStyle(.white)
+        .padding(.horizontal, 18)
+        .frame(height: 34)
+        .cardSurface(in: Capsule())
+    }
+
+    /// The glass dock: the first four apps, no labels.
+    private var dock: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(manager.entries.prefix(4).enumerated()), id: \.element.id) { _, status in
+                NavigationLink {
+                    AppProfileDetail(status: status)
+                } label: {
+                    homeIcon(status, showLabel: false)
+                }
+                .buttonStyle(.plain, sound: .tick)
+                .frame(maxWidth: .infinity)
+            }
+            if manager.entries.count < 4 {
+                Spacer()
+            }
+        }
+        .padding(.horizontal, 18)
+        .frame(height: 96)
+        .frame(maxWidth: .infinity)
+        .cardSurface(in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+    }
+
+    /// One Home Screen icon: a 60pt tile with the app's initial, its name
+    /// under it, and a dot in the corner for expiry urgency.
+    private func homeIcon(_ status: SideloadedAppStatus, showLabel: Bool) -> some View {
+        let urgency = ExpiryUrgency.of(status.current)
+        return VStack(spacing: 6) {
+            ZStack(alignment: .topTrailing) {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(LinearGradient(colors: [Theme.navy, .black], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(width: 60, height: 60)
+                    .overlay(
+                        Text(String(status.app.name.prefix(1)).uppercased())
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundStyle(.white)
+                    )
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.white.opacity(0.18), lineWidth: 0.6))
+                Circle()
+                    .fill(urgency.color)
+                    .frame(width: 12, height: 12)
+                    .overlay(Circle().strokeBorder(.black.opacity(0.35), lineWidth: 1))
+                    .offset(x: 4, y: -4)
+            }
+            if showLabel {
+                Text(status.app.name)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.85), radius: 2, x: 0, y: 1)
+                    .lineLimit(1)
+                    .frame(width: 82)
+            }
+        }
+        .contentShape(Rectangle())
     }
 
     private var emptyState: some View {

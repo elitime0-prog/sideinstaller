@@ -1415,4 +1415,5 @@ let chineseStrings: [String: String] = [
     "Install & manage": "Install & manage",
     "Discover & install": "Discover & install",
 
+    "App Library": "App Library",
 ]
