@@ -1065,7 +1065,7 @@ struct AppsView: View {
         let urgency = ExpiryUrgency.of(status.current)
         return VStack(spacing: 6) {
             ZStack(alignment: .topTrailing) {
-                AppIconView(status: status)
+                SideloadedAppIconView(status: status)
                 Circle()
                     .fill(urgency.color)
                     .frame(width: 12, height: 12)
@@ -1148,7 +1148,7 @@ struct AppsView: View {
 
 /// One app's icon: its real Home Screen icon when SpringBoard gave one,
 /// otherwise a letter tile.
-struct AppIconView: View {
+struct SideloadedAppIconView: View {
     let status: SideloadedAppStatus
     var size: CGFloat = 60
 
@@ -1223,7 +1223,7 @@ struct HomeView: View {
                         AppProfileDetail(status: status)
                     } label: {
                         VStack(spacing: 6) {
-                            AppIconView(status: status)
+                            SideloadedAppIconView(status: status)
                             Text(status.app.name)
                                 .font(.system(size: 12))
                                 .foregroundStyle(.white)
@@ -1266,7 +1266,7 @@ struct HomeView: View {
                 NavigationLink {
                     AppProfileDetail(status: status)
                 } label: {
-                    AppIconView(status: status)
+                    SideloadedAppIconView(status: status)
                 }
                 .buttonStyle(.plain, sound: .tick)
             }
@@ -1291,7 +1291,7 @@ struct HomeView: View {
                             AppProfileDetail(status: status)
                         } label: {
                             VStack(spacing: 6) {
-                                AppIconView(status: status)
+                                SideloadedAppIconView(status: status)
                                 Text(status.app.name)
                                     .font(.system(size: 12))
                                     .foregroundStyle(.white)
@@ -1375,7 +1375,7 @@ struct HomeView: View {
     @ViewBuilder
     private func folderIcon(_ apps: [SideloadedAppStatus], _ index: Int) -> some View {
         if apps.indices.contains(index) {
-            AppIconView(status: apps[index], size: 64)
+            SideloadedAppIconView(status: apps[index], size: 64)
         } else {
             Color.clear.frame(width: 64, height: 64)
         }
@@ -1400,7 +1400,7 @@ struct HomeView: View {
     @ViewBuilder
     private func miniIcon(_ apps: [SideloadedAppStatus], _ index: Int) -> some View {
         if apps.indices.contains(index) {
-            AppIconView(status: apps[index], size: 29)
+            SideloadedAppIconView(status: apps[index], size: 29)
         } else {
             Color.clear.frame(width: 29, height: 29)
         }
@@ -1425,7 +1425,7 @@ struct HomeView: View {
                                 AppProfileDetail(status: status)
                             } label: {
                                 VStack(spacing: 6) {
-                                    AppIconView(status: status)
+                                    SideloadedAppIconView(status: status)
                                     Text(status.app.name)
                                         .font(.system(size: 12))
                                         .foregroundStyle(.white)
