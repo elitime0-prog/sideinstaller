@@ -580,7 +580,6 @@ struct ToolsView: View {
                         HomeView(manager: appsManager)
                     } label: {
                         ToolTile(icon: "square.stack.3d.up", title: L("Sideloaded apps"), subtitle: L("Install & manage"), wide: true)
-                            .frame(height: 150)
                     }
                     .buttonStyle(.plain, sound: .tick)
                     .cascadeItem(0)
@@ -687,6 +686,14 @@ private struct ToolTile: View {
     var wide: Bool = false
 
     var body: some View {
+        if wide {
+            card.frame(height: 150)
+        } else {
+            card.aspectRatio(1, contentMode: .fit)
+        }
+    }
+
+    private var card: some View {
         let tile = RoundedRectangle(cornerRadius: 28, style: .continuous)
         return VStack(alignment: .leading, spacing: 8) {
             glyph
@@ -703,7 +710,6 @@ private struct ToolTile: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .aspectRatio(wide ? nil : 1, contentMode: .fit)
         .overlay(alignment: .topTrailing) {
             if beta {
                 BetaBadge()

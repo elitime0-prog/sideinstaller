@@ -505,8 +505,6 @@ final class SideloadedAppsManager: ObservableObject {
     /// Opening the page doesn't start LocalDevVPN; Load does.
     func autoLoad() {
         guard !didAutoLoad, !isWorking else { return }
-        engine.refreshNetworkStatus()
-        guard engine.vpnConnected else { return }
         didAutoLoad = true
         load(quiet: true)
     }
@@ -1218,7 +1216,7 @@ struct HomeView: View {
     // MARK: Home page
 
     private var homePage: some View {
-        ScrollView(showsIndicators: false) {
+        VStack {
             LazyVGrid(columns: Self.columns, spacing: 24) {
                 ForEach(manager.entries) { status in
                     NavigationLink {
@@ -1238,6 +1236,7 @@ struct HomeView: View {
                 }
             }
             .padding(.top, 24)
+            Spacer()
         }
     }
 
