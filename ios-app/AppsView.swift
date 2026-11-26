@@ -93,6 +93,18 @@ struct ProvisioningProfile: Identifiable, Equatable {
         self.expirationDate = dict["ExpirationDate"] as? Date
     }
 
+    /// Rebuilds a profile from the Home Screen cache.
+    init(appIDName: String, applicationIdentifier: String, teamName: String,
+         uuid: String, creationDate: Date?, expirationDate: Date?) {
+        self.appIDName = appIDName
+        self.applicationIdentifier = applicationIdentifier
+        self.teamName = teamName
+        self.uuid = uuid
+        self.creationDate = creationDate
+        self.expirationDate = expirationDate
+        self.entitlements = ["application-identifier": applicationIdentifier]
+    }
+
     /// Find the plist inside the CMS wrapper: XML between `<?xml` and `</plist>`,
     /// or everything from `bplist00` on. Apple has shipped both.
     private static func plistPayload(in data: Data) -> Data? {
@@ -121,6 +133,14 @@ struct SideloadedApp: Identifiable, Equatable {
     let applicationIdentifier: String?
 
     var id: String { bundleID }
+
+    /// Rebuilds an app from the Home Screen cache.
+    init(bundleID: String, name: String, version: String?, applicationIdentifier: String?) {
+        self.bundleID = bundleID
+        self.name = name
+        self.version = version
+        self.applicationIdentifier = applicationIdentifier
+    }
 
     /// Returns nil unless `ProfileValidated` is set. installd sets it only for
     /// apps installed with a provisioning profile, not App Store apps. TestFlight
@@ -390,6 +410,62 @@ final class SideloadedAppsManager: ObservableObject {
 
     private var engine: Engine { Engine.shared }
 
+    /// The last Home Screen, kept so the app opens on its icons like
+    /// Strata's instead of an empty page waiting for the tunnel.
+    private struct CachedApp: Codable {
+        var bundleID: String
+        var name: String
+        var version: String?
+        var applicationIdentifier: String?
+        var profiles: [CachedProfile]
+    }
+    private struct CachedProfile: Codable {
+        var appIDName: String
+        var applicationIdentifier: String
+        var teamName: String
+        var uuid: String
+        var creationDate: Date?
+        var expirationDate: Date?
+    }
+
+    init() {
+        guard let data = UserDefaults.standard.data(forKey: "HomeScreenCache"),
+              let cached = try? JSONDecoder().decode([CachedApp].self, from: data),
+              !cached.isEmpty else { return }
+        entries = cached.map { app in
+            SideloadedAppStatus(
+                app: SideloadedApp(bundleID: app.bundleID, name: app.name,
+                                   version: app.version,
+                                   applicationIdentifier: app.applicationIdentifier),
+                profiles: app.profiles.map {
+                    ProvisioningProfile(appIDName: $0.appIDName,
+                                        applicationIdentifier: $0.applicationIdentifier,
+                                        teamName: $0.teamName, uuid: $0.uuid,
+                                        creationDate: $0.creationDate,
+                                        expirationDate: $0.expirationDate)
+                })
+        }
+        hasLoaded = true
+    }
+
+    private func saveCache() {
+        let cached = entries.map { status in
+            CachedApp(bundleID: status.app.bundleID, name: status.app.name,
+                      version: status.app.version,
+                      applicationIdentifier: status.app.applicationIdentifier,
+                      profiles: status.profiles.map {
+                          CachedProfile(appIDName: $0.appIDName,
+                                        applicationIdentifier: $0.applicationIdentifier,
+                                        teamName: $0.teamName, uuid: $0.uuid,
+                                        creationDate: $0.creationDate,
+                                        expirationDate: $0.expirationDate)
+                      })
+        }
+        if let data = try? JSONEncoder().encode(cached) {
+            UserDefaults.standard.set(data, forKey: "HomeScreenCache")
+        }
+    }
+
     /// Silent audio, so a refresh a shortcut started with SideInstaller in the
     /// background isn't suspended halfway, as the location page keeps it
     /// running.
@@ -459,6 +535,7 @@ final class SideloadedAppsManager: ObservableObject {
         let matched = ProfileMatcher.match(apps: apps, profiles: profiles)
         entries = matched.entries
         unmatched = matched.unmatched
+        saveCache()
         await rebuildRefreshable()
         hasLoaded = true
         lastRefreshed = Date()
@@ -677,22 +754,27 @@ struct AppsView: View {
     @State private var searchText = ""
 
     var body: some View {
+        GeometryReader { geometry in
         ScrollView {
             VStack(spacing: 16) {
                 // Errors show as a popup, which `RootView` lays over the app.
                 appList
-                refreshAllButton
-                loadButton
+                Spacer(minLength: 24)
+                pagePill
+                dock
+                controlRow
                 refreshRunCard
                 refreshNote
                 unmatchedSection
             }
+            .frame(minHeight: geometry.size.height - 40)
             .padding(20)
             .pageColumn()
             .animation(.smooth(duration: 0.35), value: manager.entries)
             .animation(.smooth(duration: 0.3), value: manager.isWorking)
             .animation(.smooth(duration: 0.35), value: manager.jobs)
             .animation(.smooth(duration: 0.35), value: manager.refreshable)
+        }
         }
         .background(AppBackground())
         .toolbar { settingsToolbarItem(isPresented: $showSettings) }
@@ -727,84 +809,53 @@ struct AppsView: View {
         }
     }
 
-    // MARK: Primary action
+    // MARK: Controls
 
-    /// "Refresh all" button, shown when at least one app can be refreshed.
-    @ViewBuilder
-    private var refreshAllButton: some View {
-        if manager.hasLoaded && !manager.refreshable.isEmpty {
-            VStack(spacing: 8) {
-                Button { confirmRefresh = true } label: {
-                    HStack(spacing: 8) {
-                        if manager.isRefreshing {
-                            ProgressView()
-                            Text(manager.refreshStatus ?? L("Getting ready"))
-                                .lineLimit(1)
-                        } else {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                            Text(L("Refresh all"))
-                        }
-                    }
-                }
-                .buttonStyle(PrimaryButtonStyle())
-                .disabled(manager.isRefreshing || manager.isWorking)
-                // Only the install step reports progress.
-                if manager.isRefreshing, engine.installProgress > 0, engine.installProgress < 1 {
-                    ProgressView(value: engine.installProgress)
-                        .tint(Theme.accent)
-                }
-                Text(manager.refreshable.count == 1
-                     ? L("%d app can be signed again from an IPA already on this iPhone.",
-                         manager.refreshable.count)
-                     : L("%d apps can be signed again from IPAs already on this iPhone.",
-                         manager.refreshable.count))
-                    .font(.caption)
-                    .foregroundStyle(Theme.muted)
-                    .multilineTextAlignment(.center)
-            }
-            .transition(.cardAppear)
-            .cascadeItem(1)
-        }
-    }
-
-    /// Load/Reload button: primary style until "Refresh all" is available, then
-    /// secondary. Becomes Cancel during a refresh.
-    @ViewBuilder
-    private var loadButton: some View {
-        if manager.isRefreshing {
-            Button(role: .cancel) { manager.cancelRefresh() } label: {
-                Text(L("Cancel")).frame(maxWidth: .infinity)
-            }
-            .buttonStyle(SecondaryButtonStyle(), sound: .tap)
-            .controlSize(.large)
-            .cascadeItem(2)
-        } else if manager.hasLoaded && !manager.refreshable.isEmpty {
-            Button { manager.load() } label: {
-                loadLabel(spinner: Theme.accent).frame(maxWidth: .infinity)
-            }
-            .buttonStyle(SecondaryButtonStyle(), sound: .tap)
-            .controlSize(.large)
-            .disabled(manager.isWorking || manager.isRefreshing)
-            .cascadeItem(2)
-        } else {
-            Button { manager.load() } label: { loadLabel(spinner: .white) }
-                .buttonStyle(PrimaryButtonStyle())
-                .disabled(manager.isWorking || manager.isRefreshing)
-                .cascadeItem(2)
-        }
-    }
-
-    private func loadLabel(spinner: Color) -> some View {
-        HStack(spacing: 8) {
-            if manager.isWorking {
-                ProgressView().tint(spinner)
-                Text(L("Reading the device"))
+    /// Small glass pills under the dock: load or reload, and refresh all
+    /// when an app can be refreshed. Nothing big or red on the Home Screen.
+    private var controlRow: some View {
+        HStack(spacing: 12) {
+            if manager.isRefreshing {
+                glassPill(icon: nil, title: L("Cancel")) { manager.cancelRefresh() }
             } else {
-                Image(systemName: manager.hasLoaded ? "arrow.clockwise" : "iphone.and.arrow.forward")
-                    .contentTransition(.symbolEffect(.replace))
-                Text(manager.hasLoaded ? L("Reload") : L("Load apps"))
+                glassPill(icon: manager.hasLoaded ? "arrow.clockwise" : "iphone.and.arrow.forward",
+                          title: manager.isWorking ? L("Reading the device")
+                                : (manager.hasLoaded ? L("Reload") : L("Load apps"))) {
+                    manager.load()
+                }
+                .disabled(manager.isWorking)
+            }
+            if manager.hasLoaded && !manager.refreshable.isEmpty && !manager.isRefreshing {
+                glassPill(icon: "arrow.triangle.2.circlepath", title: L("Refresh all")) {
+                    confirmRefresh = true
+                }
+                .disabled(manager.isWorking)
+            }
+            if manager.isRefreshing {
+                ProgressView().tint(.white)
+                Text(manager.refreshStatus ?? L("Getting ready"))
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .lineLimit(1)
             }
         }
+        .frame(maxWidth: .infinity)
+        .cascadeItem(2)
+    }
+
+    private func glassPill(icon: String?, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                if let icon { Image(systemName: icon) }
+                Text(title)
+            }
+            .font(.system(size: 15, weight: .medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 18)
+            .frame(height: 40)
+            .cardSurface(in: Capsule())
+        }
+        .buttonStyle(.plain, sound: .tap)
     }
 
     // MARK: Refresh run
@@ -930,8 +981,6 @@ struct AppsView: View {
                         .cascadeItem(1 + idx)
                     }
                 }
-                pagePill
-                dock
             }
         } else if !manager.hasLoaded {
             appLibraryPill
@@ -945,7 +994,7 @@ struct AppsView: View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 20, weight: .medium))
-            TextField(L("App Library"), text: $searchText)
+            TextField("", text: $searchText, prompt: Text(L("App Library")).foregroundStyle(.white))
                 .font(.system(size: 20))
                 .autocorrectionDisabled()
                 .textInputAutocapitalization(.never)
