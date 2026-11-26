@@ -3579,11 +3579,29 @@ final class Engine {
         try await ensurePairingConnection()
         let apps = try await onDeviceQueue { try self.connection.installedAppPlists() }
         let profiles = try await onDeviceQueue { try self.connection.provisioningProfiles() }
-        let sideloadedIDs = apps.compactMap { plist -> String? in
-            guard plist["ProfileValidated"] != nil else { return nil }
-            return plist["CFBundleIdentifier"] as? String
+        // SpringBoard knows apps by their installed bundle ID; a signer may
+        // have rewritten it, so also try the bundle part of the signed
+        // application identifier.
+        var iconCandidates: [String: [String]] = [:]
+        for plist in apps where plist["ProfileValidated"] != nil {
+            guard let bundleID = plist["CFBundleIdentifier"] as? String else { continue }
+            var candidates = [bundleID]
+            if let entitlements = plist["Entitlements"] as? [String: Any],
+               let appID = entitlements["application-identifier"] as? String,
+               let dot = appID.firstIndex(of: ".") {
+                let bundlePart = String(appID[appID.index(after: dot)...])
+                if bundlePart != bundleID { candidates.append(bundlePart) }
+            }
+            iconCandidates[bundleID] = candidates
         }
-        let icons = try await onDeviceQueue { self.connection.appIcons(bundleIDs: sideloadedIDs) }
+        let fetched = try await onDeviceQueue {
+            self.connection.appIcons(bundleIDs: Array(Set(iconCandidates.values.flatMap { $0 })))
+        }
+        var icons: [String: Data] = [:]
+        for (bundleID, candidates) in iconCandidates {
+            icons[bundleID] = candidates.compactMap { fetched[$0] }.first
+        }
+        log("Apps: icons for \(icons.count) of \(iconCandidates.count) sideloaded app(s).")
         log("Apps: \(apps.count) installed, \(profiles.count) provisioning profile(s) on the device.")
         return (apps, profiles, icons)
     }

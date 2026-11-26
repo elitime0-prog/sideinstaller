@@ -576,12 +576,19 @@ struct ToolsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    header.cascadeItem(0)
+                    NavigationLink {
+                        HomeView(manager: appsManager)
+                    } label: {
+                        ToolTile(icon: "square.stack.3d.up", title: L("Sideloaded apps"), subtitle: L("Install & manage"), wide: true)
+                            .frame(height: 150)
+                    }
+                    .buttonStyle(.plain, sound: .tick)
+                    .cascadeItem(0)
                     LazyVGrid(columns: Self.columns, spacing: 16) {
                         NavigationLink {
                             SideBySideView(manager: sideBySideManager)
                         } label: {
-                            ToolTile(image: "SideBySideLogo", title: L("Side by Side"), subtitle: L("Set up another iPhone"))
+                            ToolTile(icon: "iphone.radiowaves.left.and.right", title: L("Side by Side"), subtitle: L("Set up another iPhone"))
                         }
                         .buttonStyle(.plain, sound: .tick)
                         .cascadeItem(1)
@@ -591,7 +598,7 @@ struct ToolsView: View {
                             NavigationLink {
                                 PairingView(manager: pairingManager)
                             } label: {
-                                ToolTile(image: "PairingLogo", title: L("Pairing"), subtitle: L("Make a pairing file"))
+                                ToolTile(icon: "key", title: L("Pairing"), subtitle: L("Make a pairing file"))
                             }
                             .buttonStyle(.plain, sound: .tick)
                             .cascadeItem(2)
@@ -599,42 +606,35 @@ struct ToolsView: View {
                         NavigationLink {
                             JITView(manager: jitManager)
                         } label: {
-                            ToolTile(image: "JITLogo", title: L("JIT"), subtitle: L("Setup & providers"))
+                            ToolTile(icon: "bolt", title: L("JIT"), subtitle: L("Setup & providers"))
                         }
                         .buttonStyle(.plain, sound: .tick)
                         .cascadeItem(rowIndex(2))
                         NavigationLink {
                             CertsView(manager: certManager)
                         } label: {
-                            ToolTile(image: "CertsLogo", title: L("Certificates"), subtitle: L("View & revoke"))
+                            ToolTile(icon: "checkmark.seal", title: L("Certificates"), subtitle: L("View & revoke"))
                         }
                         .buttonStyle(.plain, sound: .tick)
                         .cascadeItem(rowIndex(3))
                         NavigationLink {
                             EntitlementsView(manager: entitlementsManager)
                         } label: {
-                            ToolTile(image: "EntitlementsLogo", title: L("Entitlements"), subtitle: L("Ask Apple for access"))
+                            ToolTile(icon: "checklist", title: L("Entitlements"), subtitle: L("Ask Apple for access"))
                         }
                         .buttonStyle(.plain, sound: .tick)
                         .cascadeItem(rowIndex(4))
                         NavigationLink {
                             LocationView(manager: locationManager)
                         } label: {
-                            ToolTile(image: "LocationLogo", title: L("Location spoofing"), subtitle: L("Set a location"))
+                            ToolTile(icon: "location", title: L("Location spoofing"), subtitle: L("Set a location"))
                         }
                         .buttonStyle(.plain, sound: .tick)
                         .cascadeItem(rowIndex(5))
                         NavigationLink {
-                            AppsView(manager: appsManager)
-                        } label: {
-                            ToolTile(image: "AppsLogo", title: L("Sideloaded apps"), subtitle: L("Install & manage"))
-                        }
-                        .buttonStyle(.plain, sound: .tick)
-                        .cascadeItem(rowIndex(6))
-                        NavigationLink {
                             SourcesView(manager: sourcesManager, appsManager: appsManager)
                         } label: {
-                            ToolTile(image: "SourcesLogo", title: L("Sources"), subtitle: L("Discover & install"),
+                            ToolTile(icon: "books.vertical", title: L("Sources"), subtitle: L("Discover & install"),
                                      count: sourcesManager.updateCount(installed: appsManager.entries))
                         }
                         .buttonStyle(.plain, sound: .tick)
@@ -683,6 +683,8 @@ private struct ToolTile: View {
     var beta: Bool = false
     /// A count in the top corner, such as the updates Sources found. 0 hides it.
     var count: Int = 0
+    /// A full-width card instead of a square tile, like Strata's top card.
+    var wide: Bool = false
 
     var body: some View {
         let tile = RoundedRectangle(cornerRadius: 28, style: .continuous)
@@ -701,7 +703,7 @@ private struct ToolTile: View {
         }
         .padding(18)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .aspectRatio(1, contentMode: .fit)
+        .aspectRatio(wide ? nil : 1, contentMode: .fit)
         .overlay(alignment: .topTrailing) {
             if beta {
                 BetaBadge()

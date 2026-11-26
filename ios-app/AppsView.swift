@@ -499,10 +499,12 @@ final class SideloadedAppsManager: ObservableObject {
         }.count
     }
 
-    /// Loads once when the page opens with the tunnel up, without showing
-    /// errors. Opening the page doesn't start LocalDevVPN; Load does.
+    /// Loads once per launch when the tunnel is up, without showing
+    /// errors, even when the cache already filled the Home Screen — the
+    /// reload is what brings in real icons and fresh expiry dates.
+    /// Opening the page doesn't start LocalDevVPN; Load does.
     func autoLoad() {
-        guard !didAutoLoad, !hasLoaded, !isWorking else { return }
+        guard !didAutoLoad, !isWorking else { return }
         engine.refreshNetworkStatus()
         guard engine.vpnConnected else { return }
         didAutoLoad = true
@@ -1438,6 +1440,33 @@ struct HomeView: View {
                         }
                     }
                     Spacer()
+                    HStack(spacing: 12) {
+                        if !manager.refreshable.isEmpty && !manager.isRefreshing {
+                            Button { manager.refreshAll() } label: {
+                                Label(L("Refresh all"), systemImage: "arrow.triangle.2.circlepath")
+                            }
+                            .disabled(manager.isWorking)
+                        }
+                        if manager.isRefreshing {
+                            ProgressView().tint(.white)
+                            Text(manager.refreshStatus ?? L("Getting ready"))
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.7))
+                            Button(L("Cancel")) { manager.cancelRefresh() }
+                        } else {
+                            Button { manager.load() } label: {
+                                Label(L("Reload"), systemImage: "arrow.clockwise")
+                            }
+                            .disabled(manager.isWorking)
+                        }
+                    }
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.white)
+                    if let summary = manager.refreshSummary {
+                        Text(summary)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
                 }
                 .padding(20)
             }
