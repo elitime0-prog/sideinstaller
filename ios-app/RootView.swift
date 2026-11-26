@@ -8,7 +8,7 @@ struct RootView: View {
     /// The tabs. The selection is tracked so a tab switch can tick, and a
     /// link can bring the Install tab forward.
     private enum Page: Hashable {
-        case install, tools, about
+        case home, install, tools, about
     }
 
     /// What the sign-in sheet shows: a 2FA prompt, or which team signs.
@@ -73,11 +73,16 @@ struct RootView: View {
     /// What the sign-in sheet showed last, so it keeps its content while it
     /// slides away after the sign-in clears it.
     @State private var shownSignInSheet: SignInSheet?
-    @State private var page: Page = .install
+    @State private var page: Page = .home
 
     var body: some View {
         // `.tabItem`/`.tag` rather than iOS 18's `Tab`, to keep iOS 17.
         TabView(selection: tabSelection) {
+            NavigationStack {
+                AppsView(manager: appsManager)
+            }
+                .tabItem { Label(L("Home"), systemImage: "house") }
+                .tag(Page.home)
             ContentView()
                 .tabItem { Label(L("Install"), systemImage: "square.and.arrow.down") }
                 .tag(Page.install)

@@ -1463,4 +1463,5 @@ let italianStrings: [String: String] = [
     "Discover & install": "Discover & install",
 
     "App Library": "App Library",
+    "Home": "Home",
 ]
