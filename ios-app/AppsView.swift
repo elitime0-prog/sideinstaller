@@ -131,15 +131,19 @@ struct SideloadedApp: Identifiable, Equatable {
     /// `TEAMID.bundle.id` from the app's signed entitlements. When missing,
     /// profile matching falls back to the bundle ID.
     let applicationIdentifier: String?
+    /// The app's real Home Screen icon from SpringBoard, when it came back.
+    var iconData: Data? = nil
 
     var id: String { bundleID }
 
     /// Rebuilds an app from the Home Screen cache.
-    init(bundleID: String, name: String, version: String?, applicationIdentifier: String?) {
+    init(bundleID: String, name: String, version: String?, applicationIdentifier: String?,
+         iconData: Data? = nil) {
         self.bundleID = bundleID
         self.name = name
         self.version = version
         self.applicationIdentifier = applicationIdentifier
+        self.iconData = iconData
     }
 
     /// Returns nil unless `ProfileValidated` is set. installd sets it only for
@@ -173,7 +177,7 @@ struct SideloadedApp: Identifiable, Equatable {
 /// latest expiry first. Multiple profiles are normal: each re-sign leaves one.
 struct SideloadedAppStatus: Identifiable, Equatable {
 
-    let app: SideloadedApp
+    var app: SideloadedApp
     let profiles: [ProvisioningProfile]
 
     var id: String { app.bundleID }
@@ -417,6 +421,7 @@ final class SideloadedAppsManager: ObservableObject {
         var name: String
         var version: String?
         var applicationIdentifier: String?
+        var iconData: Data?
         var profiles: [CachedProfile]
     }
     private struct CachedProfile: Codable {
@@ -436,7 +441,8 @@ final class SideloadedAppsManager: ObservableObject {
             SideloadedAppStatus(
                 app: SideloadedApp(bundleID: app.bundleID, name: app.name,
                                    version: app.version,
-                                   applicationIdentifier: app.applicationIdentifier),
+                                   applicationIdentifier: app.applicationIdentifier,
+                                   iconData: app.iconData),
                 profiles: app.profiles.map {
                     ProvisioningProfile(appIDName: $0.appIDName,
                                         applicationIdentifier: $0.applicationIdentifier,
@@ -453,6 +459,7 @@ final class SideloadedAppsManager: ObservableObject {
             CachedApp(bundleID: status.app.bundleID, name: status.app.name,
                       version: status.app.version,
                       applicationIdentifier: status.app.applicationIdentifier,
+                      iconData: status.app.iconData,
                       profiles: status.profiles.map {
                           CachedProfile(appIDName: $0.appIDName,
                                         applicationIdentifier: $0.applicationIdentifier,
@@ -533,7 +540,11 @@ final class SideloadedAppsManager: ObservableObject {
         let profiles = inventory.profiles.compactMap(ProvisioningProfile.init(data:))
             .filter { !$0.isAppStoreDistribution }
         let matched = ProfileMatcher.match(apps: apps, profiles: profiles)
-        entries = matched.entries
+        entries = matched.entries.map { status in
+            var status = status
+            status.app.iconData = inventory.icons[status.app.bundleID]
+            return status
+        }
         unmatched = matched.unmatched
         saveCache()
         await rebuildRefreshable()
@@ -1054,15 +1065,7 @@ struct AppsView: View {
         let urgency = ExpiryUrgency.of(status.current)
         return VStack(spacing: 6) {
             ZStack(alignment: .topTrailing) {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(LinearGradient(colors: [Theme.navy, .black], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 60, height: 60)
-                    .overlay(
-                        Text(String(status.app.name.prefix(1)).uppercased())
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundStyle(.white)
-                    )
-                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.white.opacity(0.18), lineWidth: 0.6))
+                AppIconView(status: status)
                 Circle()
                     .fill(urgency.color)
                     .frame(width: 12, height: 12)
@@ -1138,6 +1141,333 @@ struct AppsView: View {
             }
             .cascadeItem(6 + manager.entries.count)
         }
+    }
+}
+
+// MARK: - Home
+
+/// One app's icon: its real Home Screen icon when SpringBoard gave one,
+/// otherwise a letter tile.
+struct AppIconView: View {
+    let status: SideloadedAppStatus
+    var size: CGFloat = 60
+
+    var body: some View {
+        Group {
+            if let data = status.app.iconData, let image = UIImage(data: data) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                ZStack {
+                    LinearGradient(colors: [Theme.navy, .black],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                    Text(String(status.app.name.prefix(1)).uppercased())
+                        .font(.system(size: size * 0.46, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.23, style: .continuous))
+    }
+}
+
+/// The Home tab: Strata's clean Home Screen and App Library, nothing else.
+/// Swipe between the two pages; the dock and page pill sit under the Home
+/// page. Refreshing and profiles stay on the Tools page.
+struct HomeView: View {
+    @EnvironmentObject private var loc: Localizer
+    @Environment(Engine.self) private var engine
+    @ObservedObject var manager: SideloadedAppsManager
+
+    @State private var page = 0
+    @State private var searchText = ""
+    @State private var showFolder = false
+    @State private var showSettings = false
+
+    var body: some View {
+        ZStack {
+            AppBackground()
+            VStack(spacing: 14) {
+                TabView(selection: $page) {
+                    homePage.tag(0)
+                    libraryPage.tag(1)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                if page == 0 {
+                    pagePill
+                    dock
+                }
+                if !manager.hasLoaded && manager.entries.isEmpty {
+                    loadPill
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
+            .animation(.smooth(duration: 0.3), value: page)
+        }
+        .toolbar { settingsToolbarItem(isPresented: $showSettings) }
+        .sheet(isPresented: $showSettings) { SettingsView() }
+        .sheet(isPresented: $showFolder) { folderSheet }
+        .onAppear { manager.autoLoad() }
+    }
+
+    // MARK: Home page
+
+    private var homePage: some View {
+        ScrollView(showsIndicators: false) {
+            LazyVGrid(columns: Self.columns, spacing: 24) {
+                ForEach(manager.entries) { status in
+                    NavigationLink {
+                        AppProfileDetail(status: status)
+                    } label: {
+                        VStack(spacing: 6) {
+                            AppIconView(status: status)
+                            Text(status.app.name)
+                                .font(.system(size: 12))
+                                .foregroundStyle(.white)
+                                .shadow(color: .black.opacity(0.85), radius: 2, x: 0, y: 1)
+                                .lineLimit(1)
+                                .frame(width: 82)
+                        }
+                    }
+                    .buttonStyle(.plain, sound: .tick)
+                }
+            }
+            .padding(.top, 24)
+        }
+    }
+
+    private static let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 4)
+
+    /// The search-and-page pill above the dock.
+    private var pagePill: some View {
+        HStack(spacing: 10) {
+            Button { page = 1 } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .buttonStyle(.plain)
+            Rectangle().fill(.white.opacity(0.25)).frame(width: 1, height: 14)
+            Circle().fill(.white).frame(width: 7, height: 7)
+            Circle().fill(.white.opacity(0.4)).frame(width: 7, height: 7)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 18)
+        .frame(height: 34)
+        .cardSurface(in: Capsule())
+    }
+
+    /// The glass dock: the first four apps, centered, no labels.
+    private var dock: some View {
+        HStack(spacing: 24) {
+            ForEach(manager.entries.prefix(4)) { status in
+                NavigationLink {
+                    AppProfileDetail(status: status)
+                } label: {
+                    AppIconView(status: status)
+                }
+                .buttonStyle(.plain, sound: .tick)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 96)
+        .cardSurface(in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+    }
+
+    // MARK: App Library page
+
+    private var libraryPage: some View {
+        VStack(spacing: 22) {
+            searchPill
+            if searchText.isEmpty {
+                folderTile
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                LazyVGrid(columns: Self.columns, spacing: 24) {
+                    ForEach(filtered) { status in
+                        NavigationLink {
+                            AppProfileDetail(status: status)
+                        } label: {
+                            VStack(spacing: 6) {
+                                AppIconView(status: status)
+                                Text(status.app.name)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.white)
+                                    .shadow(color: .black.opacity(0.85), radius: 2, x: 0, y: 1)
+                                    .lineLimit(1)
+                                    .frame(width: 82)
+                            }
+                        }
+                        .buttonStyle(.plain, sound: .tick)
+                    }
+                }
+            }
+            Spacer()
+        }
+        .padding(.top, 10)
+    }
+
+    private var filtered: [SideloadedAppStatus] {
+        manager.entries.filter { $0.app.name.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    private var searchPill: some View {
+        HStack(spacing: 10) {
+            Spacer()
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 20, weight: .medium))
+            TextField("", text: $searchText,
+                      prompt: Text(L("App Library")).foregroundStyle(.white))
+                .font(.system(size: 20))
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .frame(minWidth: 140)
+                .fixedSize(horizontal: true, vertical: false)
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+        }
+        .foregroundStyle(.white)
+        .frame(height: 54)
+        .cardSurface(in: Capsule())
+    }
+
+    /// The App Library folder: three big icons and a mini grid, like the
+    /// picture. Every sideloaded app lives in it.
+    private var folderTile: some View {
+        Button { showFolder = true } label: {
+            VStack(spacing: 8) {
+                folderPreview
+                Text(L("Other"))
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.85), radius: 2, x: 0, y: 1)
+            }
+        }
+        .buttonStyle(.plain, sound: .tick)
+        .disabled(manager.entries.isEmpty)
+    }
+
+    private var folderPreview: some View {
+        let apps = manager.entries
+        return VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                folderIcon(apps, 0)
+                folderIcon(apps, 1)
+            }
+            HStack(spacing: 12) {
+                folderIcon(apps, 2)
+                miniGrid(apps)
+            }
+        }
+        .padding(14)
+        .frame(width: 176, height: 176)
+        .cardSurface(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func folderIcon(_ apps: [SideloadedAppStatus], _ index: Int) -> some View {
+        if apps.indices.contains(index) {
+            AppIconView(status: apps[index], size: 64)
+        } else {
+            Color.clear.frame(width: 64, height: 64)
+        }
+    }
+
+    /// The folder's fourth cell: the next apps, small.
+    private func miniGrid(_ apps: [SideloadedAppStatus]) -> some View {
+        let rest = Array(apps.dropFirst(3).prefix(4))
+        return VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                miniIcon(rest, 0)
+                miniIcon(rest, 1)
+            }
+            HStack(spacing: 6) {
+                miniIcon(rest, 2)
+                miniIcon(rest, 3)
+            }
+        }
+        .frame(width: 64, height: 64)
+    }
+
+    @ViewBuilder
+    private func miniIcon(_ apps: [SideloadedAppStatus], _ index: Int) -> some View {
+        if apps.indices.contains(index) {
+            AppIconView(status: apps[index], size: 29)
+        } else {
+            Color.clear.frame(width: 29, height: 29)
+        }
+    }
+
+    private var folderSheet: some View {
+        NavigationStack {
+            ZStack {
+                AppBackground()
+                VStack(spacing: 20) {
+                    HStack {
+                        Text(L("Other"))
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(.white)
+                        Spacer()
+                        Button(L("Done")) { showFolder = false }
+                            .foregroundStyle(.white)
+                    }
+                    LazyVGrid(columns: Self.columns, spacing: 24) {
+                        ForEach(manager.entries) { status in
+                            NavigationLink {
+                                AppProfileDetail(status: status)
+                            } label: {
+                                VStack(spacing: 6) {
+                                    AppIconView(status: status)
+                                    Text(status.app.name)
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(.white)
+                                        .shadow(color: .black.opacity(0.85), radius: 2, x: 0, y: 1)
+                                        .lineLimit(1)
+                                        .frame(width: 82)
+                                }
+                            }
+                            .buttonStyle(.plain, sound: .tick)
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(20)
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    // MARK: First load
+
+    /// Shown only until the apps have loaded once; after that the cache
+    /// keeps the Home Screen filled and this never comes back.
+    private var loadPill: some View {
+        Button { manager.load() } label: {
+            HStack(spacing: 8) {
+                if manager.isWorking {
+                    ProgressView().tint(.white)
+                    Text(L("Reading the device"))
+                } else {
+                    Image(systemName: "iphone.and.arrow.forward")
+                    Text(L("Load apps"))
+                }
+            }
+            .font(.system(size: 15, weight: .medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 18)
+            .frame(height: 40)
+            .cardSurface(in: Capsule())
+        }
+        .buttonStyle(.plain, sound: .tap)
+        .disabled(manager.isWorking)
     }
 }
 

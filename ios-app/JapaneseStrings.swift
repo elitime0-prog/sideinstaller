@@ -1428,4 +1428,5 @@ let japaneseStrings: [String: String] = [
 
     "App Library": "App Library",
     "Home": "Home",
+    "Other": "Other",
 ]

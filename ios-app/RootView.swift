@@ -79,7 +79,7 @@ struct RootView: View {
         // `.tabItem`/`.tag` rather than iOS 18's `Tab`, to keep iOS 17.
         TabView(selection: tabSelection) {
             NavigationStack {
-                AppsView(manager: appsManager)
+                HomeView(manager: appsManager)
             }
                 .tabItem { Label(L("Home"), systemImage: "house") }
                 .tag(Page.home)

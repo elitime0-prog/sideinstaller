@@ -1467,4 +1467,5 @@ let spanishStrings: [String: String] = [
 
     "App Library": "App Library",
     "Home": "Home",
+    "Other": "Other",
 ]

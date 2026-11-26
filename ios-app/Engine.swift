@@ -3575,12 +3575,17 @@ final class Engine {
     /// Installed apps and all provisioning profiles on the device, fetched
     /// together so the caller can match each app to its profile.
     @MainActor
-    func sideloadedAppInventory() async throws -> (apps: [[String: Any]], profiles: [Data]) {
+    func sideloadedAppInventory() async throws -> (apps: [[String: Any]], profiles: [Data], icons: [String: Data]) {
         try await ensurePairingConnection()
         let apps = try await onDeviceQueue { try self.connection.installedAppPlists() }
         let profiles = try await onDeviceQueue { try self.connection.provisioningProfiles() }
+        let sideloadedIDs = apps.compactMap { plist -> String? in
+            guard plist["ProfileValidated"] != nil else { return nil }
+            return plist["CFBundleIdentifier"] as? String
+        }
+        let icons = try await onDeviceQueue { self.connection.appIcons(bundleIDs: sideloadedIDs) }
         log("Apps: \(apps.count) installed, \(profiles.count) provisioning profile(s) on the device.")
-        return (apps, profiles)
+        return (apps, profiles, icons)
     }
 
     // MARK: Refreshing what's already installed

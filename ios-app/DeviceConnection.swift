@@ -1201,6 +1201,32 @@ final class DeviceConnection {
         return out
     }
 
+    /// Real Home Screen icons from SpringBoard, by bundle ID. Best effort:
+    /// an app whose icon won't come back is simply missing from the result.
+    func appIcons(bundleIDs: [String]) -> [String: Data] {
+        guard let adapter, let handshake else { return [:] }
+        var client: OpaquePointer?
+        guard ffiError(springboard_services_connect_rsd(adapter, handshake, &client),
+                       "springboard_services_connect_rsd failed") == nil,
+              let client else { return [:] }
+        defer { springboard_services_free(client) }
+
+        var out: [String: Data] = [:]
+        for bundleID in bundleIDs {
+            var ptr: UnsafeMutableRawPointer?
+            var length = 0
+            let err = bundleID.withCString { id in
+                springboard_services_get_icon(client, id, &ptr, &length)
+            }
+            if ffiError(err, "springboard_services_get_icon failed") == nil,
+               let ptr, length > 0 {
+                out[bundleID] = Data(bytes: ptr, count: length)
+                idevice_data_free(ptr.assumingMemoryBound(to: UInt8.self), UInt(length))
+            }
+        }
+        return out
+    }
+
     /// Whether the app with exactly this bundle ID is installed, asking installd
     /// about that one app only.
     func isInstalled(bundleID: String) throws -> Bool {
