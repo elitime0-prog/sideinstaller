@@ -1173,6 +1173,16 @@ struct SideloadedAppIconView: View {
     }
 }
 
+/// Opens an installed app by bundle ID, the way a home screen does.
+enum AppLauncher {
+    static func open(bundleID: String) {
+        guard let workspaceClass = NSClassFromString("LSApplicationWorkspace") as? NSObject.Type,
+              let workspace = workspaceClass.perform(NSSelectorFromString("defaultWorkspace"))?.takeUnretainedValue() as? NSObject
+        else { return }
+        _ = workspace.perform(NSSelectorFromString("openApplicationWithBundleID:"), with: bundleID)
+    }
+}
+
 /// The Home tab: Strata's clean Home Screen and App Library, nothing else.
 /// Swipe between the two pages; the dock and page pill sit under the Home
 /// page. Refreshing and profiles stay on the Tools page.
@@ -1181,7 +1191,8 @@ struct HomeView: View {
     @Environment(Engine.self) private var engine
     @ObservedObject var manager: SideloadedAppsManager
 
-    @State private var page = 0
+    @State private var page = 1
+    @State private var infoStatus: SideloadedAppStatus?
     @State private var searchText = ""
     @State private var showFolder = false
     @State private var showSettings = false
@@ -1191,11 +1202,11 @@ struct HomeView: View {
             AppBackground()
             VStack(spacing: 14) {
                 TabView(selection: $page) {
-                    homePage.tag(0)
-                    libraryPage.tag(1)
+                    libraryPage.tag(0)
+                    homePage.tag(1)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                if page == 0 {
+                if page == 1 {
                     pagePill
                     dock
                 }
@@ -1211,6 +1222,12 @@ struct HomeView: View {
         .sheet(isPresented: $showSettings) { SettingsView() }
         .sheet(isPresented: $showFolder) { folderSheet }
         .onAppear { manager.autoLoad() }
+        .navigationDestination(isPresented: Binding(
+            get: { infoStatus != nil },
+            set: { if !$0 { infoStatus = nil } }
+        )) {
+            if let infoStatus { AppProfileDetail(status: infoStatus) }
+        }
     }
 
     // MARK: Home page
@@ -1219,9 +1236,7 @@ struct HomeView: View {
         VStack {
             LazyVGrid(columns: Self.columns, spacing: 24) {
                 ForEach(manager.entries) { status in
-                    NavigationLink {
-                        AppProfileDetail(status: status)
-                    } label: {
+                    Button { AppLauncher.open(bundleID: status.app.bundleIdentifier) } label: {
                         VStack(spacing: 6) {
                             SideloadedAppIconView(status: status)
                             Text(status.app.name)
@@ -1233,6 +1248,11 @@ struct HomeView: View {
                         }
                     }
                     .buttonStyle(.plain, sound: .tick)
+                    .contextMenu {
+                        Button { infoStatus = status } label: {
+                            Label(L("App info"), systemImage: "info.circle")
+                        }
+                    }
                 }
             }
             .padding(.top, 24)
@@ -1245,7 +1265,7 @@ struct HomeView: View {
     /// The search-and-page pill above the dock.
     private var pagePill: some View {
         HStack(spacing: 10) {
-            Button { page = 1 } label: {
+            Button { page = 0 } label: {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 13, weight: .semibold))
             }
@@ -1264,12 +1284,15 @@ struct HomeView: View {
     private var dock: some View {
         HStack(spacing: 24) {
             ForEach(manager.entries.prefix(4)) { status in
-                NavigationLink {
-                    AppProfileDetail(status: status)
-                } label: {
+                Button { AppLauncher.open(bundleID: status.app.bundleIdentifier) } label: {
                     SideloadedAppIconView(status: status)
                 }
                 .buttonStyle(.plain, sound: .tick)
+                .contextMenu {
+                    Button { infoStatus = status } label: {
+                        Label(L("App info"), systemImage: "info.circle")
+                    }
+                }
             }
         }
         .frame(maxWidth: .infinity)
@@ -1288,9 +1311,7 @@ struct HomeView: View {
             } else {
                 LazyVGrid(columns: Self.columns, spacing: 24) {
                     ForEach(filtered) { status in
-                        NavigationLink {
-                            AppProfileDetail(status: status)
-                        } label: {
+                        Button { AppLauncher.open(bundleID: status.app.bundleIdentifier) } label: {
                             VStack(spacing: 6) {
                                 SideloadedAppIconView(status: status)
                                 Text(status.app.name)
@@ -1302,6 +1323,11 @@ struct HomeView: View {
                             }
                         }
                         .buttonStyle(.plain, sound: .tick)
+                        .contextMenu {
+                            Button { infoStatus = status } label: {
+                                Label(L("App info"), systemImage: "info.circle")
+                            }
+                        }
                     }
                 }
             }
@@ -1422,9 +1448,7 @@ struct HomeView: View {
                     }
                     LazyVGrid(columns: Self.columns, spacing: 24) {
                         ForEach(manager.entries) { status in
-                            NavigationLink {
-                                AppProfileDetail(status: status)
-                            } label: {
+                            Button { AppLauncher.open(bundleID: status.app.bundleIdentifier) } label: {
                                 VStack(spacing: 6) {
                                     SideloadedAppIconView(status: status)
                                     Text(status.app.name)
@@ -1436,6 +1460,11 @@ struct HomeView: View {
                                 }
                             }
                             .buttonStyle(.plain, sound: .tick)
+                            .contextMenu {
+                                Button { infoStatus = status } label: {
+                                    Label(L("App info"), systemImage: "info.circle")
+                                }
+                            }
                         }
                     }
                     Spacer()
@@ -1468,6 +1497,12 @@ struct HomeView: View {
                     }
                 }
                 .padding(20)
+            }
+            .navigationDestination(isPresented: Binding(
+                get: { infoStatus != nil },
+                set: { if !$0 { infoStatus = nil } }
+            )) {
+                if let infoStatus { AppProfileDetail(status: infoStatus) }
             }
         }
         .presentationDetents([.medium, .large])

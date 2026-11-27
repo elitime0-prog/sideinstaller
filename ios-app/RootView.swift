@@ -574,12 +574,13 @@ struct ToolsView: View {
 
     var body: some View {
         NavigationStack {
+            GeometryReader { geometry in
             ScrollView {
                 VStack(spacing: 16) {
                     NavigationLink {
                         HomeView(manager: appsManager)
                     } label: {
-                        ToolTile(icon: "square.stack.3d.up", title: L("Sideloaded apps"), subtitle: L("Install & manage"), wide: true)
+                        ToolTile(icon: "square.stack.3d.up", title: L("Sideloaded apps"), subtitle: L("Install & manage"), wide: true, height: max(1, (geometry.size.width - 60) / 2))
                     }
                     .buttonStyle(.plain, sound: .tick)
                     .cascadeItem(0)
@@ -643,7 +644,7 @@ struct ToolsView: View {
                 // No bottom padding: the tab bar's inset already clears the last
                 // row of tiles, and the extra 20pt would make a page that fits scroll.
                 .padding(.horizontal, 22)
-                .padding(.top, 16)
+                .padding(.top, 56)
                 .pageColumn()
             }
             // Still unless the tiles don't all fit on the screen.
@@ -651,6 +652,7 @@ struct ToolsView: View {
             .background(AppBackground())
             .toolbar { settingsToolbarItem(isPresented: $showSettings) }
             .sheet(isPresented: $showSettings) { SettingsView() }
+            }
         }
     }
 
@@ -685,9 +687,11 @@ private struct ToolTile: View {
     /// A full-width card instead of a square tile, like Strata's top card.
     var wide: Bool = false
 
+    var height: CGFloat? = nil
+
     var body: some View {
         if wide {
-            card.frame(height: 150)
+            card.frame(height: height ?? 150)
         } else {
             card.aspectRatio(1, contentMode: .fit)
         }
