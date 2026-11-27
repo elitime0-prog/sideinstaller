@@ -1236,7 +1236,7 @@ struct HomeView: View {
         VStack {
             LazyVGrid(columns: Self.columns, spacing: 24) {
                 ForEach(manager.entries) { status in
-                    Button { AppLauncher.open(bundleID: status.app.bundleIdentifier) } label: {
+                    Button { AppLauncher.open(bundleID: status.app.bundleID) } label: {
                         VStack(spacing: 6) {
                             SideloadedAppIconView(status: status)
                             Text(status.app.name)
@@ -1284,7 +1284,7 @@ struct HomeView: View {
     private var dock: some View {
         HStack(spacing: 24) {
             ForEach(manager.entries.prefix(4)) { status in
-                Button { AppLauncher.open(bundleID: status.app.bundleIdentifier) } label: {
+                Button { AppLauncher.open(bundleID: status.app.bundleID) } label: {
                     SideloadedAppIconView(status: status)
                 }
                 .buttonStyle(.plain, sound: .tick)
@@ -1311,7 +1311,7 @@ struct HomeView: View {
             } else {
                 LazyVGrid(columns: Self.columns, spacing: 24) {
                     ForEach(filtered) { status in
-                        Button { AppLauncher.open(bundleID: status.app.bundleIdentifier) } label: {
+                        Button { AppLauncher.open(bundleID: status.app.bundleID) } label: {
                             VStack(spacing: 6) {
                                 SideloadedAppIconView(status: status)
                                 Text(status.app.name)
@@ -1448,7 +1448,7 @@ struct HomeView: View {
                     }
                     LazyVGrid(columns: Self.columns, spacing: 24) {
                         ForEach(manager.entries) { status in
-                            Button { AppLauncher.open(bundleID: status.app.bundleIdentifier) } label: {
+                            Button { AppLauncher.open(bundleID: status.app.bundleID) } label: {
                                 VStack(spacing: 6) {
                                     SideloadedAppIconView(status: status)
                                     Text(status.app.name)
