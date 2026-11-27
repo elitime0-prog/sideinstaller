@@ -574,17 +574,16 @@ struct ToolsView: View {
 
     var body: some View {
         NavigationStack {
-            GeometryReader { geometry in
             ScrollView {
                 VStack(spacing: 16) {
-                    NavigationLink {
-                        HomeView(manager: appsManager)
-                    } label: {
-                        ToolTile(icon: "square.stack.3d.up", title: L("Sideloaded apps"), subtitle: L("Install & manage"), wide: true, height: max(1, (geometry.size.width - 60) / 2))
-                    }
-                    .buttonStyle(.plain, sound: .tick)
-                    .cascadeItem(0)
                     LazyVGrid(columns: Self.columns, spacing: 16) {
+                        NavigationLink {
+                            HomeView(manager: appsManager)
+                        } label: {
+                            ToolTile(icon: "square.stack.3d.up", title: L("Sideloaded apps"), subtitle: L("Install & manage"))
+                        }
+                        .buttonStyle(.plain, sound: .tick)
+                        .cascadeItem(0)
                         NavigationLink {
                             SideBySideView(manager: sideBySideManager)
                         } label: {
@@ -644,7 +643,8 @@ struct ToolsView: View {
                 // No bottom padding: the tab bar's inset already clears the last
                 // row of tiles, and the extra 20pt would make a page that fits scroll.
                 .padding(.horizontal, 22)
-                .padding(.top, 56)
+                .padding(.top, 64)
+                .padding(.bottom, 110)
                 .pageColumn()
             }
             // Still unless the tiles don't all fit on the screen.
@@ -652,7 +652,6 @@ struct ToolsView: View {
             .background(AppBackground())
             .toolbar { settingsToolbarItem(isPresented: $showSettings) }
             .sheet(isPresented: $showSettings) { SettingsView() }
-            }
         }
     }
 

@@ -1191,7 +1191,7 @@ struct HomeView: View {
     @Environment(Engine.self) private var engine
     @ObservedObject var manager: SideloadedAppsManager
 
-    @State private var page = 1
+    @State private var page = 0
     @State private var infoStatus: SideloadedAppStatus?
     @State private var searchText = ""
     @State private var showFolder = false
@@ -1202,11 +1202,11 @@ struct HomeView: View {
             AppBackground()
             VStack(spacing: 14) {
                 TabView(selection: $page) {
-                    libraryPage.tag(0)
-                    homePage.tag(1)
+                    homePage.tag(0)
+                    libraryPage.tag(1)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                if page == 1 {
+                if page == 0 {
                     pagePill
                     dock
                 }
@@ -1265,7 +1265,7 @@ struct HomeView: View {
     /// The search-and-page pill above the dock.
     private var pagePill: some View {
         HStack(spacing: 10) {
-            Button { page = 0 } label: {
+            Button { page = 1 } label: {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 13, weight: .semibold))
             }
